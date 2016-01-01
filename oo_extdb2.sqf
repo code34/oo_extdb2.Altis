@@ -74,6 +74,7 @@
 
 		PUBLIC FUNCTION("", "getVersion") {
 			private["_data"];
+			_data = "extDB2" callExtension "9:VERSION";
 			_data = format["OO_extdb2: %1 Dll: %2", MEMBER("version", nil), _data];
 			_data;
 		};
@@ -89,8 +90,12 @@
 		};
 
 		// Check if DB exists
+		// Return True if yes
 		PUBLIC FUNCTION("", "exists") {
-
+			private["_database"];
+			_database = MEMBER("dbname", nil);
+			_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE:%1", _database]);
+			if ((_result select 0) isEqualTo 0)  then { false; } else { true;};
 		};
 
 		// Delete DB

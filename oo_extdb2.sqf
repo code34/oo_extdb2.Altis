@@ -125,32 +125,25 @@
 			_return;
 		};
 				
-		PUBLIC FUNCTION("array", "sendRequest") {
-			private["_query", "_queryResult", "_key", "_mode", "_loop"];
-						
-			if (!params [ 
-				["_mode", 0, [0]],
-				["_query", "", [""]]
-			]) exitWith {
-				[0, "Params error"];
-			};
-			
-			_queryResult = [0, "Syntax error"];
+		PUBLIC FUNCTION("array", "executeQuery") {
+			private["_defaultreturn", "_query", "_queryResult", "_key", "_mode", "_loop"];
+
+			_query = _this select 0;
+			_defaultreturn = _this select 1;
+
+			_queryResult = "";
+
+			_mode = 0;
 
 			_key = call compile ("extDB2" callExtension format["%1:%2:%3",_mode, MEMBER("sessionid", nil), _query]);
+			if((_key select 0) isEqualTo 2) then {_mode = 2;};
 
-			//0=Sync 1=ASync 2=ASync+Save
 			switch(_mode) do {
 				case 0 : {
 					_queryResult = _key;
 				};
-				case 1 : {
-					_queryResult = [1, true];
-				};
 				case 2 : {
-					uisleep (random .03);
-			
-					_queryResult = "";
+					uisleep 0.1;
 					_loop = true;
 					while{_loop} do {
 						_queryResult = "extDB2" callExtension format["4:%1", _key select 1];
@@ -163,7 +156,6 @@
 							};
 						}else{
 							if (_queryResult isEqualTo "[3]") then {
-								diag_log format ["extDB2: uisleep [4]: %1", diag_tickTime];
 								uisleep 0.1;
 							} else {
 								_loop = false;
@@ -171,14 +163,18 @@
 						};
 					};
 					_queryResult = call compile _queryResult;
+					if(isnil "_queryResult") then { 
+						_queryResult = [0, "extDB2: error - return value is not compatible with SQF"];
+					};
 				};
 				default {};
 			};
 			
 			if ((_queryResult select 0) isEqualTo 0) then {
 				MEMBER("sendError", (_queryResult select 1) + "-->" + _query);
+				_queryResult = [1, _defaultreturn];
 			};
-			_queryResult;
+			_queryResult select 1;
 		};
 				
 		PRIVATE FUNCTION("string", "connect") {

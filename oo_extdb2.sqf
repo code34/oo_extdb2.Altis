@@ -167,7 +167,9 @@
 						_queryResult = [0, "extDB2: error - return value is not compatible with SQF"];
 					};
 				};
-				default {};
+				default {
+					_queryResult = [0, "extDB2: error - return value is not compatible with SQF"];
+				};
 			};
 			
 			if ((_queryResult select 0) isEqualTo 0) then {

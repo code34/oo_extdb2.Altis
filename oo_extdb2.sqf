@@ -28,19 +28,17 @@
 		
 		PRIVATE VARIABLE("scalar", "dllversionrequired");
 		PRIVATE VARIABLE("string", "databasename");
-		PRIVATE VARIABLE("string", "protocol");
 		PRIVATE VARIABLE("string", "sessionid");
 		PRIVATE STATIC_VARIABLE("array", "sessions");
 		PRIVATE VARIABLE("scalar", "version");
 
-		PUBLIC FUNCTION("STRING", "constructor") {
-			
+		PUBLIC FUNCTION("STRING", "constructor") {	
 			MEMBER("version", 0.1);
 			MEMBER("dllversionrequired", 62);
 
 			private ["_database", "_sessionid"];
 
-			if!(MEMBER("checkExtDB2isLoaded", nil)) exitwith { MEMBER("sendError", "OO_extDB required extDB2 Dll"); };
+			if!(MEMBER("checkExtDB2isLoaded", nil)) exitwith { MEMBER("sendError", "OO_extDB2 required extDB2 Dll"); };
 			if!(MEMBER("checkDllVersion", nil)) exitwith { MEMBER("sendLog", "Required extDB2 Dll version is " + (str MEMBER("dllversionrequired", nil)) + " or higher."); };
 			if(isnil MEMBER("sessions", nil)) then { _array = []; MEMBER("sessions", _array;);};
 		
@@ -94,29 +92,29 @@
 			if((_result select 0) isEqualTo 1) then { true; } else { false; };
 		};
 		
-		PUBLIC FUNCTION("array", "setDatabaseProtocol") {
-			private ["_return", "_result", "_database", "_sessionid", "_protocol", "_protocoloptions"];
+		PUBLIC FUNCTION("array", "setMode") {
+			private ["_return", "_result", "_database", "_sessionid", "_mode", "_modeoptions"];
 	
-			_protocol = toUpper(_this select 0); 
-			_protocoloptions = _this select 1;
+			_mode = toUpper(param [0, "", [""]]);
+			_modeoptions = param [1, "", [""]];
 			
 			_database = MEMBER("databasename", nil);
 			_sessionid = MEMBER("sessionid", nil);
 
-			switch ( _protocol) do { 
-				case "SQL_CUSTOM_V2" : { 
-					_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE_PROTOCOL:%1:%2:%3:%4", _database, _protocol, _sessionid, "extDB2"]);
+			switch ( _mode) do { 
+				case "PREPAREDSTATEMENT" : { 
+					_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE_PROTOCOL:%1:SQL_CUSTOM_V2:%2:%3", _database, _sessionid, "extDB2"]);
 				};
-				case "SQL_RAW_V2" : { 
-					_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE_PROTOCOL:%1:%2:%3:%4", _database, _protocol, _sessionid, _protocoloptions]);
+				case "SQLQUERY" : { 
+					_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE_PROTOCOL:%1:SQL_RAW_V2:%2:%3", _database, _sessionid, _modeoptions]);
 				}; 
 				default { 
-					_result = [0, "Protocol doesn't exist"];
+					_result = [0, "Mode doesn't exist"];
 				}; 
 			};
 						
 			if ((_result select 0) isEqualTo 1) then {
-				MEMBER("sendLog", "Protocol loaded - " + _protocol);
+				MEMBER("sendLog", "Mode setted - " + _mode);
 				_return = true;
 			}else{
 				MEMBER("sendError", _result select 1);
@@ -127,12 +125,11 @@
 				
 		PUBLIC FUNCTION("array", "executeQuery") {
 			private["_defaultreturn", "_query", "_queryResult", "_key", "_mode", "_loop"];
-
-			_query = _this select 0;
-			_defaultreturn = _this select 1;
-
+		
+			_query = param [0, "", [""]];
+			_defaultreturn = param [1, "", ["", true, 0, []]];
+		
 			_queryResult = "";
-
 			_mode = 0;
 
 			_key = call compile ("extDB2" callExtension format["%1:%2:%3",_mode, MEMBER("sessionid", nil), _query]);

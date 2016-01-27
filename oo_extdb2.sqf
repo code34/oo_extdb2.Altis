@@ -36,26 +36,24 @@
 			MEMBER("version", 0.1);
 			MEMBER("dllversionrequired", 62);
 
-			private ["_database", "_sessionid"];
-
 			if!(MEMBER("checkExtDB2isLoaded", nil)) exitwith { MEMBER("sendError", "OO_extDB2 required extDB2 Dll"); };
 			if!(MEMBER("checkDllVersion", nil)) exitwith { MEMBER("sendLog", "Required extDB2 Dll version is " + (str MEMBER("dllversionrequired", nil)) + " or higher."); };
 			if(isnil MEMBER("sessions", nil)) then { _array = []; MEMBER("sessions", _array;);};
 		
 			MEMBER("databasename", _this);
 			MEMBER("connect", _this);
-			MEMBER("generateSessionId", nil);				
 		};
 
 		PUBLIC FUNCTION("", "generateSessionId") {
 			private ["_sessionid"];
-			_sessionid = str(round(random(999999)));
+			_sessionid = str(round(random(999999))) + str(round(random(999999)));
 			while { _sessionid in MEMBER("sessions", nil) } do {
-				_sessionid = str(round(random(999999)));
+				_sessionid = str(round(random(999999))) + str(round(random(999999)));
 				sleep 0.01;
 			};
 			MEMBER("sessions", nil) pushBack _sessionid;
 			MEMBER("sessionid", _sessionid);
+			_sessionid;
 		};
 
 		PUBLIC FUNCTION("", "getSessionId") {
@@ -99,7 +97,7 @@
 			_modeoptions = param [1, "", [""]];
 			
 			_database = MEMBER("databasename", nil);
-			_sessionid = MEMBER("sessionid", nil);
+			_sessionid = MEMBER("generateSessionId", nil);
 
 			switch ( _mode) do { 
 				case "PREPAREDSTATEMENT" : { 
@@ -109,12 +107,12 @@
 					_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE_PROTOCOL:%1:SQL_RAW_V2:%2:%3", _database, _sessionid, _modeoptions]);
 				}; 
 				default { 
-					_result = [0, "Mode doesn't exist"];
+					_result = [0, format["Mode: %1 invalid. Expected Mode : PREPAREDSTATEMENT or  SQLQUERY", _mode]];
 				}; 
 			};
 						
 			if ((_result select 0) isEqualTo 1) then {
-				MEMBER("sendLog", "Mode setted - " + _mode);
+				MEMBER("sendLog", "Mode: " + _mode);
 				_return = true;
 			}else{
 				MEMBER("sendError", _result select 1);
@@ -129,7 +127,7 @@
 			_query = param [0, "", [""]];
 			_defaultreturn = param [1, "", ["", true, 0, []]];
 		
-			_queryResult = "";
+			_queryResult = _defaultreturn;
 			_mode = 0;
 
 			_key = call compile ("extDB2" callExtension format["%1:%2:%3",_mode, MEMBER("sessionid", nil), _query]);
@@ -161,11 +159,11 @@
 					};
 					_queryResult = call compile _queryResult;
 					if(isnil "_queryResult") then { 
-						_queryResult = [0, "extDB2: error - return value is not compatible with SQF"];
+						_queryResult = [0, "Return value is not compatible with SQF"];
 					};
 				};
 				default {
-					_queryResult = [0, "extDB2: error - return value is not compatible with SQF"];
+					_queryResult = [0, "Return value is not compatible with SQF"];
 				};
 			};
 			
@@ -175,28 +173,47 @@
 			};
 			_queryResult select 1;
 		};
-				
+		
+		/*
+		Connect to Database
+		parameter: string - name of database
+		return : nothing
+		*/
 		PRIVATE FUNCTION("string", "connect") {
 			private ["_return", "_result"];
 
 			_return = false;	
 			_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE:%1", _this]);
-			
+		
 			if !(isNil "_result") then {
 				if ((_result select 0) isEqualTo 1) then {
-					MEMBER("sendLog", "Connected to " + _this);
-					_return = true;
+					_return = MEMBER("testConnexion", nil);
 				}else{
 					if(tolower(_result select 1) isEqualTo "already connected to database") then {
-						MEMBER("sendLog", "Connected to " + _this);
-						_return = true;
-					} else {
-						MEMBER("sendError", _result select 1);
-					};
+						_return = MEMBER("testConnexion", nil);
+					} ;
 				};
-			}else{
-				MEMBER("sendError", "Unable to connect to database - extDB2 locked");
-			};	
+			};
+
+			if(_return) then {
+				MEMBER("sendLog", "Connected to " + _this);
+			} else {
+				MEMBER("sendError", "Unable to connect to database");
+			};
+		};
+
+		PRIVATE FUNCTION("", "testConnexion") {
+			private ["_array", "_return"];
+			_array = ["SQLQUERY", "ADD_QUOTES"];
+			MEMBER("setMode", _array);
+
+			_array = ["SELECT date('now');", []];
+			
+			if(MEMBER("executeQuery", _query)  isEqualTo 0) then {
+				_return = false;
+			} else {
+				_return = true;
+			};
 			_return;
 		};
 
@@ -220,7 +237,7 @@
 		};
 				
 		PRIVATE FUNCTION("string", "sendLog") {
-			diag_log (format ["extDB2 log: %1", _this]);
+			diag_log (format ["extDB2 Log: %1", _this]);
 		};
 		
 		PRIVATE FUNCTION("string", "sendError") {

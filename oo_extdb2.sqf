@@ -176,14 +176,23 @@
 			};		
 			_return;
 		};
-				
+
+
+		/*
+		Execute SQL query or Prepared Statement
+		Parameter: array
+			_this select 0 : string - name of preparered statement or sql query
+			_this select 1 : any - return default value if nothing is found in db or error happen
+
+		return : value from db or default value
+		*/		
 		PUBLIC FUNCTION("array", "executeQuery") {
-			private["_defaultreturn", "_query", "_queryResult", "_key", "_mode", "_loop"];
+			private["_defaultreturn", "_query", "_result", "_key", "_mode", "_loop", "_pipe"];
 		
 			_query = param [0, "", [""]];
 			_defaultreturn = param [1, "", ["", true, 0, []]];
 		
-			_queryResult = _defaultreturn;
+			_result = _defaultreturn;
 			_mode = 0;
 
 			_key = call compile ("extDB2" callExtension format["%1:%2:%3",_mode, MEMBER("sessionid", nil), _query]);
@@ -191,43 +200,42 @@
 
 			switch(_mode) do {
 				case 0 : {
-					_queryResult = _key;
+					_result = _key;
 				};
 				case 2 : {
-					uisleep 0.1;
 					_loop = true;
-					while{_loop} do {
-						_queryResult = "extDB2" callExtension format["4:%1", _key select 1];
-						if (_queryResult isEqualTo "[5]") then {
-							_queryResult = "";
-							while{true} do {
-								_pipe = "extDB2" callExtension format["5:%1", _key select 1];
-								if(_pipe isEqualTo "") exitWith {_loop = false};
-								_queryResult = _queryResult + _pipe;
+					while { _loop } do {
+						_result = "extDB2" callExtension format["4:%1", _key select 1];
+						switch (true) do {
+							case (_result isEqualTo "[3]") : { uiSleep 0.1; };
+
+							case (_result isEqualTo "[5]") : {
+								_pipe = "go";
+								_result = "";
+								while{ !(_pipe isEqualTo "") } do {
+									_pipe = "extDB2" callExtension format["5:%1", _key select 1];
+									_result = _result + _pipe;
+								};
+								_loop= false;
 							};
-						}else{
-							if (_queryResult isEqualTo "[3]") then {
-								uisleep 0.1;
-							} else {
-								_loop = false;
-							};
+							default {_loop = false;};
 						};
 					};
-					_queryResult = call compile _queryResult;
-					if(isnil "_queryResult") then { 
-						_queryResult = [0, "Return value is not compatible with SQF"];
+					_result = call compile _result;
+					if(isnil "_result") then { 
+						_result = [0, "Return value is not compatible with SQF"];
 					};
 				};
 				default {
-					_queryResult = [0, "Return value is not compatible with SQF"];
+					_result = [0, "Mode is not compatible with OO_extDB2"];
 				};
 			};
 			
-			if ((_queryResult select 0) isEqualTo 0) then {
-				MEMBER("sendError", (_queryResult select 1) + "-->" + _query);
-				_queryResult = [1, _defaultreturn];
+			if ((_result select 0) isEqualTo 0) then {
+				MEMBER("sendError", (_result select 1) + "-->" + _query);
+				_result = [0, _defaultreturn];
 			};
-			_queryResult select 1;
+			_result select 1;
 		};
 		
 		/*
@@ -311,6 +319,7 @@
 			DELETE_VARIABLE("dllversionrequired");
 			DELETE_VARIABLE("databasename");
 			DELETE_VARIABLE("filenamestatement");
+			DELETE_VARIABLE("version");
 		};		
 		
 	ENDCLASS;

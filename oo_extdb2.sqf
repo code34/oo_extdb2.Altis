@@ -19,7 +19,6 @@
 	
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>. 
-
 	*/
 	
 	#include "oop.h"
@@ -29,10 +28,25 @@
 		PRIVATE VARIABLE("scalar", "dllversionrequired");
 		PRIVATE VARIABLE("string", "databasename");
 		PRIVATE VARIABLE("string", "sessionid");
+		PRIVATE VARIABLE("string", "filenamestatement");
 		PRIVATE STATIC_VARIABLE("array", "sessions");
 		PRIVATE VARIABLE("scalar", "version");
 
-		PUBLIC FUNCTION("STRING", "constructor") {	
+		/*
+		Instanciate OO_extDB2
+
+		params:
+		_this select 0 : string - name of the dabase
+		_this select 1 : string - name of the file containing the SQL prestatement without .ini extension (by default extDB2)
+
+		return : nothing
+		*/
+		PUBLIC FUNCTION("array", "constructor") {	
+			private ["_databasename", "_filenamestatement"];
+
+			_databasename = param [0, "", [""]];
+			_filenamestatement = param [1, "extDB2", [""]];
+
 			MEMBER("version", 0.1);
 			MEMBER("dllversionrequired", 62);
 
@@ -40,10 +54,16 @@
 			if!(MEMBER("checkDllVersion", nil)) exitwith { MEMBER("sendLog", "Required extDB2 Dll version is " + (str MEMBER("dllversionrequired", nil)) + " or higher."); };
 			if(isnil MEMBER("sessions", nil)) then { _array = []; MEMBER("sessions", _array;);};
 		
-			MEMBER("databasename", _this);
-			MEMBER("connect", _this);
+			MEMBER("databasename", _databasename);
+			MEMBER("filenamestatement", _filenamestatement);
+			MEMBER("connect", _databasename);
 		};
 
+		/*
+		Generate a unique session id. Unique session id is require when changing mode
+		Parameters: none
+		Return : string - sessionid
+		*/
 		PUBLIC FUNCTION("", "generateSessionId") {
 			private ["_sessionid"];
 			_sessionid = str(round(random(999999))) + str(round(random(999999)));
@@ -75,7 +95,12 @@
 		PUBLIC FUNCTION("", "getVersion") {
 			 format["OO_extDB2: %1 Dll: %2", MEMBER("getDllVersion", nil), MEMBER("version", nil)];
 		};
-		
+
+		/*
+		Lock mode
+		Parameters: none
+		Return : true is success
+		*/		
 		PUBLIC FUNCTION("", "lock") {
 			private ["_result"];
 			
@@ -83,15 +108,44 @@
 			if ((_result select 0) isEqualTo 1) then { MEMBER("sendLog", "Locked"); true; } else { false; };
 		};
 		
+		/*
+		Check if mode is locked
+		Parameters: none
+		Return : true is success
+		*/
 		PUBLIC FUNCTION("", "isLocked") {
 			private ["_result"];
 			
 			_result = call compile ("extDB2" callExtension "9:LOCK_STATUS");		
 			if((_result select 0) isEqualTo 1) then { true; } else { false; };
 		};
-		
+
+
+		/*
+		Set the filename of prepared statements (without .ini extension)
+		The filename should be in @extDB2\extDB\sql_custom_v2\ path
+
+		Example can be found at this place
+		https://github.com/Torndeco/extDB2/blob/master/examples/sql_custom_v2/example.ini
+		*/
+		PUBLIC FUNCTION("string", "setStatementFileName") {
+			MEMBER("filenamestatement", _this);
+		};
+
+		/*
+		Set the option for prepared statements 
+
+		/*
+		setMode
+		Parameters: 
+			_this select 0 : string "PREPAREDSTATEMENT"|"SQLQUERY"
+				SQLQUERY : standard sql query
+				PREPAREDSTATEMENT : prepared sql queries in ini files
+			_this select 1 : string
+		Return : true is success
+		*/
 		PUBLIC FUNCTION("array", "setMode") {
-			private ["_return", "_result", "_database", "_sessionid", "_mode", "_modeoptions"];
+			private ["_filename", "_return", "_result", "_database", "_sessionid", "_mode", "_modeoptions"];
 	
 			_mode = toUpper(param [0, "", [""]]);
 			_modeoptions = param [1, "", [""]];
@@ -101,9 +155,11 @@
 
 			switch ( _mode) do { 
 				case "PREPAREDSTATEMENT" : { 
-					_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE_PROTOCOL:%1:SQL_CUSTOM_V2:%2:%3", _database, _sessionid, "extDB2"]);
+					_filename = MEMBER("filenamestatement", nil);
+					_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE_PROTOCOL:%1:SQL_CUSTOM_V2:%2:%3", _database, _sessionid,  _filename, _modeoptions]);
 				};
 				case "SQLQUERY" : { 
+					_modeoptions = "ADD_QUOTES";
 					_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE_PROTOCOL:%1:SQL_RAW_V2:%2:%3", _database, _sessionid, _modeoptions]);
 				}; 
 				default { 
@@ -204,12 +260,12 @@
 
 		PRIVATE FUNCTION("", "testConnexion") {
 			private ["_array", "_return"];
+			
 			_array = ["SQLQUERY", "ADD_QUOTES"];
 			MEMBER("setMode", _array);
-
 			_array = ["SELECT date('now');", []];
 			
-			if(MEMBER("executeQuery", _query)  isEqualTo 0) then {
+			if(MEMBER("executeQuery", _array)  isEqualTo 0) then {
 				_return = false;
 			} else {
 				_return = true;
@@ -254,7 +310,7 @@
 			DELETE_VARIABLE("sessionid");
 			DELETE_VARIABLE("dllversionrequired");
 			DELETE_VARIABLE("databasename");
-			DELETE_VARIABLE("protolist");
+			DELETE_VARIABLE("filenamestatement");
 		};		
 		
 	ENDCLASS;

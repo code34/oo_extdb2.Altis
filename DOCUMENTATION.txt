@@ -1,0 +1,66 @@
+	Description:
+	CLASS OO_extDB2 - A driver for extdb2
+
+	Authors:  
+	code34 nicolas_boiteux@yahoo.fr
+	Aloe <itfruit@mail.ru>
+
+	Copyright (C) 2016 Nicolas BOITEUX 
+	
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+	
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+	
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+
+	--------------------------------------------------------------------------------------------------------------
+
+	Function:  _extdb2 = ["new", ["mydbname", "preparedstatementconfigfile"]] call OO_extDB2;
+	Create a new extdb2 mapper
+		
+	Parameters: array 
+		_this select 0 : string - containing your dbname as it is declared into the file "extdb-conf.ini"
+		_this select 1 : string - name of the file containing all the prepared statement without .ini extension (optionnal - by default the file name is "extDB2" in @extDB2\extDB\sql_custom_v2).
+			This file is only used if you used the "PREPAREDSTATEMENT" mode
+
+	--------------------------------------------------------------------------------------------------------------
+
+	Function: _bool = ["setMode", [_mode, _options]] call _extdb2;
+	Set the Mode used for db queries
+
+	Parameters: array
+		_this select 0: string - mode can be "PREPAREDSTATEMENT" or "SQLQUERY"
+			PREPAREDSTATEMENT are SQL Query pre declared in the .ini file (recommanded as they return a formated result)
+			SQLQUERY are standard SQL query (deprecated)
+		_this select 1: string - option if use by PREPAREDSTATEMENT and is optionnal
+			More infos : https://github.com/Torndeco/extDB2/wiki/Calls:-Protocol--SQL_CUSTOM_V2
+		
+	Return : true if success
+
+	--------------------------------------------------------------------------------------------------------------
+
+	Function: _result = ["executeQuery", [_query, _defaultreturn]] call _extdb2; 
+	Execute the SQL Query
+		
+	Parameters: array
+		_this select 0 : string - SQL QUERY in SQLQUERY mode or name of prepared statement
+		_this select 1 : string|scalare|bool|array, default return value expected if no result is found, or database is broken
+
+	Return :  result of the query or default value
+	
+	--------------------------------------------------------------------------------------------------------------
+	
+	Function:  ["delete", _extDB2] call OO_extDB2;
+	Destroy the extDB2 object 
+		
+	Parameters:
+		object - extDB2 object
+	
+	Return : nothing

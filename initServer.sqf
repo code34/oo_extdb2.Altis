@@ -3,15 +3,10 @@
 	sleep 2;
 
 	/*
-	Example with a standard SQL QUERY
-
 	_extdb2 = ["new",  ["test_database"]] call OO_extDB2;
-
 	["setMode", ["SQLQUERY"]] call _extdb2;
-	
 	_query = "SELECT * FROM test_table_1";
 	_result = ["executeQuery", [_query, []]] call _extdb2;	
-	
 	hint format ["SQL QUERY: %1", _result];
 	*/
 

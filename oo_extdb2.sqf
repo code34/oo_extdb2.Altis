@@ -3,7 +3,7 @@
 	Code34 <nicolas_boiteux@yahoo.fr>
 	Aloe <itfruit@mail.ru>
 	
-	Copyright (C) 2016
+	Copyright (C) 2016-2018
 
 	CLASS OO_extDB2 -  Class for connect to extDB2, send requests, get responses
 
@@ -24,7 +24,6 @@
 	#include "oop.h"
 
 	CLASS("OO_extDB2")
-		
 		PRIVATE VARIABLE("scalar", "dllversionrequired");
 		PRIVATE VARIABLE("string", "databasename");
 		PRIVATE VARIABLE("string", "sessionid");
@@ -42,18 +41,14 @@
 		return : nothing
 		*/
 		PUBLIC FUNCTION("array", "constructor") {	
-			private ["_databasename", "_filenamestatement"];
-
-			_databasename = param [0, "", [""]];
-			_filenamestatement = param [1, "extDB2", [""]];
-
+			DEBUG(#, "OO_extDB2::constructor")
+			private _databasename = param [0, "", [""]];
+			private _filenamestatement = param [1, "extDB2", [""]];
 			MEMBER("version", 0.1);
 			MEMBER("dllversionrequired", 62);
-
 			if!(MEMBER("checkExtDB2isLoaded", nil)) exitwith { MEMBER("sendError", "OO_extDB2 required extDB2 Dll"); };
 			if!(MEMBER("checkDllVersion", nil)) exitwith { MEMBER("sendLog", "Required extDB2 Dll version is " + (str MEMBER("dllversionrequired", nil)) + " or higher."); };
-			if(isnil MEMBER("sessions", nil)) then { _array = []; MEMBER("sessions", _array;);};
-		
+			if(isnil MEMBER("sessions", nil)) then { MEMBER("sessions", [];) ;};
 			MEMBER("databasename", _databasename);
 			MEMBER("filenamestatement", _filenamestatement);
 			MEMBER("connect", _databasename);
@@ -65,8 +60,8 @@
 		Return : string - sessionid
 		*/
 		PUBLIC FUNCTION("", "generateSessionId") {
-			private ["_sessionid"];
-			_sessionid = str(round(random(999999))) + str(round(random(999999)));
+			DEBUG(#, "OO_extDB2::generateSessionId")
+			private _sessionid = str(round(random(999999))) + str(round(random(999999)));
 			while { _sessionid in MEMBER("sessions", nil) } do {
 				_sessionid = str(round(random(999999))) + str(round(random(999999)));
 				sleep 0.01;
@@ -77,22 +72,27 @@
 		};
 
 		PUBLIC FUNCTION("", "getSessionId") {
+			DEBUG(#, "OO_extDB2::getSessionId")
 			MEMBER("sessionid", nil);
 		};
 
 		PUBLIC FUNCTION("string", "existsSessionId") {
+			DEBUG(#, "OO_extDB2E::existsSessionId")
 			if(_this in MEMBER("sessions", nil)) then { true; } else { false; };
 		};
 
 		PUBLIC FUNCTION("", "checkDllVersion") {
+			DEBUG(#, "OO_extDB2E::checkDllVersion")
 			if(MEMBER("getDllVersion", nil) > MEMBER("dllversionrequired", nil)) then { true;} else {false;};
 		};
 
 		PUBLIC FUNCTION("", "checkExtDB2isLoaded") {
+			DEBUG(#, "OO_extDB2E::checkExtDB2isLoaded")	
 			if(MEMBER("getDllVersion", nil) == 0) then { false; } else { true;};
 		};
 
 		PUBLIC FUNCTION("", "getVersion") {
+			DEBUG(#, "OO_extDB2E::getVersion")
 			 format["OO_extDB2: %1 Dll: %2", MEMBER("getDllVersion", nil), MEMBER("version", nil)];
 		};
 
@@ -102,9 +102,8 @@
 		Return : true is success
 		*/		
 		PUBLIC FUNCTION("", "lock") {
-			private ["_result"];
-			
-			_result = call compile ("extDB2" callExtension "9:LOCK");
+			DEBUG(#, "OO_extDB2E::lock")
+			private _result = call compile ("extDB2" callExtension "9:LOCK");
 			if ((_result select 0) isEqualTo 1) then { MEMBER("sendLog", "Locked"); true; } else { false; };
 		};
 		
@@ -114,9 +113,8 @@
 		Return : true is success
 		*/
 		PUBLIC FUNCTION("", "isLocked") {
-			private ["_result"];
-			
-			_result = call compile ("extDB2" callExtension "9:LOCK_STATUS");		
+			DEBUG(#, "OO_extDB2E::isLocked")
+			private _result = call compile ("extDB2" callExtension "9:LOCK_STATUS");		
 			if((_result select 0) isEqualTo 1) then { true; } else { false; };
 		};
 
@@ -129,6 +127,7 @@
 		https://github.com/Torndeco/extDB2/blob/master/examples/sql_custom_v2/example.ini
 		*/
 		PUBLIC FUNCTION("string", "setStatementFileName") {
+			DEBUG(#, "OO_extDB2E::setStatementFileName")
 			MEMBER("filenamestatement", _this);
 		};
 
@@ -145,13 +144,14 @@
 		Return : true is success
 		*/
 		PUBLIC FUNCTION("array", "setMode") {
-			private ["_filename", "_return", "_result", "_database", "_sessionid", "_mode", "_modeoptions"];
-	
-			_mode = toUpper(param [0, "", [""]]);
-			_modeoptions = param [1, "", [""]];
-			
-			_database = MEMBER("databasename", nil);
-			_sessionid = MEMBER("generateSessionId", nil);
+			DEBUG(#, "OO_extDB2E::setMode")
+			private _mode = toUpper(param [0, "", [""]]);
+			private _modeoptions = param [1, "", [""]];
+			private _database = MEMBER("databasename", nil);
+			private _sessionid = MEMBER("generateSessionId", nil);
+			private _filename = "";
+			private _result = [0,[]];
+			private _return = false;
 
 			switch ( _mode) do { 
 				case "PREPAREDSTATEMENT" : { 
@@ -166,7 +166,8 @@
 					_result = [0, format["Mode: %1 invalid. Expected Mode : PREPAREDSTATEMENT or  SQLQUERY", _mode]];
 				}; 
 			};
-						
+			if(isNil "_result") then { _result = [0,"No database avalaible"];};
+
 			if ((_result select 0) isEqualTo 1) then {
 				MEMBER("sendLog", "Mode: " + _mode);
 				_return = true;
@@ -187,21 +188,18 @@
 		return : value from db or default value
 		*/		
 		PUBLIC FUNCTION("array", "executeQuery") {
-			private["_defaultreturn", "_query", "_result", "_key", "_mode", "_loop", "_pipe"];
-		
-			_query = param [0, "", [""]];
-			_defaultreturn = param [1, "", ["", true, 0, []]];
-		
-			_result = _defaultreturn;
-			_mode = 0;
+			DEBUG(#, "OO_extDB2E::executeQuery")
+			private _query = param [0, "", [""]];
+			private _defaultreturn = param [1, "", ["", true, 0, []]];
+			private _result = _defaultreturn;
+			private _mode = 0;
+			private _key = call compile ("extDB2" callExtension format["%1:%2:%3",_mode, MEMBER("sessionid", nil), _query]);
+			private _loop = 0;
+			private _pipe = "";
 
-			_key = call compile ("extDB2" callExtension format["%1:%2:%3",_mode, MEMBER("sessionid", nil), _query]);
 			if((_key select 0) isEqualTo 2) then {_mode = 2;};
-
 			switch(_mode) do {
-				case 0 : {
-					_result = _key;
-				};
+				case 0 : { _result = _key; };
 				case 2 : {
 					_loop = true;
 					while { _loop } do {
@@ -244,10 +242,9 @@
 		return : nothing
 		*/
 		PRIVATE FUNCTION("string", "connect") {
-			private ["_return", "_result"];
-
-			_return = false;	
-			_result = call compile ("extDB2" callExtension format["9:ADD_DATABASE:%1", _this]);
+			DEBUG(#, "OO_extDB2E::connect")
+			private _return = false;	
+			private _result = call compile ("extDB2" callExtension format["9:ADD_DATABASE:%1", _this]);
 		
 			if !(isNil "_result") then {
 				if ((_result select 0) isEqualTo 1) then {
@@ -258,7 +255,6 @@
 					} ;
 				};
 			};
-
 			if(_return) then {
 				MEMBER("sendLog", "Connected to " + _this);
 			} else {
@@ -267,31 +263,26 @@
 		};
 
 		PRIVATE FUNCTION("", "testConnexion") {
-			private ["_array", "_return"];
-			
-			_array = ["SQLQUERY", "ADD_QUOTES"];
+			DEBUG(#, "OO_extDB2E::testConnexion")
+			private _array = ["SQLQUERY", "ADD_QUOTES"];
 			MEMBER("setMode", _array);
 			_array = ["SELECT date('now');", []];
-			
-			if(MEMBER("executeQuery", _array)  isEqualTo 0) then {
-				_return = false;
-			} else {
-				_return = true;
-			};
+			private _return = false;
+			if(MEMBER("executeQuery", _array)  isEqualTo 0) then { _return = false; };
 			_return;
 		};
 
 		PUBLIC FUNCTION("", "disconnect") {
-
+			DEBUG(#, "OO_extDB2E::disconnect")
 		};
 
 		PUBLIC FUNCTION("", "isconnected") {
-
+			DEBUG(#, "OO_extDB2E::isconnected")
 		};		
 				
 		PRIVATE FUNCTION("", "getDllVersion") {
-			private ["_version"];
-			_version = "extDB2" callExtension "9:VERSION";
+			DEBUG(#, "OO_extDB2E::getDllVersion")
+			private _version = "extDB2" callExtension "9:VERSION";
 			if(_version isequalto "") then {
 				_version = 0;
 			} else {
@@ -301,19 +292,20 @@
 		};
 				
 		PRIVATE FUNCTION("string", "sendLog") {
+			DEBUG(#, "OO_extDB2E::sendLog")
 			diag_log (format ["extDB2 Log: %1", _this]);
 		};
 		
 		PRIVATE FUNCTION("string", "sendError") {
-			private ["_error"];
-			_error = format["extDB2 Error: %1", _this];
+			DEBUG(#, "OO_extDB2E::sendError")
+			private _error = format["extDB2 Error: %1", _this];
 			_error call BIS_fnc_error;
 			diag_log _error;
 		};
 
 		PUBLIC FUNCTION("", "deconstructor") {
-			private ["_temp"];
-			_temp = MEMBER("sessions", nil) - [MEMBER("sessionid", nil)];
+			DEBUG(#, "OO_extDB2E::deconstructor")
+			private _temp = MEMBER("sessions", nil) - [MEMBER("sessionid", nil)];
 			MEMBER("sessions", _temp);
 			DELETE_VARIABLE("sessionid");
 			DELETE_VARIABLE("dllversionrequired");
